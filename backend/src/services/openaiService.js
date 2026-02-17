@@ -1,130 +1,86 @@
-import OpenAI from "openai";
-import config from "../config/env.js";
-import { AppError } from "../middleware/errorHandler.js";
-import {
-  SYSTEM_PROMPT,
-  generateUserPromptWithSegments,
-} from "../utils/promptTemplates.js";
+const config = require("../config/env");
+const { SYSTEM_PROMPT, generateUserPrompt } = require("../utils/promptTemplates");
 
-// ── Initialise the OpenAI client ────────────────────────────
-// Throws immediately if OPENAI_API_KEY is missing, so the app
-// never starts in a broken state.
-if (!config.openaiApiKey) {
-  throw new Error(
-    "[TubeMind] OPENAI_API_KEY is missing. Add it to .env and restart."
-  );
-}
+let openaiClient = null;
 
-const openai = new OpenAI({ apiKey: config.openaiApiKey });
+const getOpenAIClient = () => {
+  if (!config.openaiApiKey) {
+    throw new Error("OPENAI_API_KEY is missing in .env file");
+  }
 
-// ── Main entry point ─────────────────────────────────────────
-/**
- * Generate a structured summary from a video transcript.
- *
- * @param {string} videoTitle - The video's title
- * @param {Array} segments - Array of {startTime, endTime, text}
- * @returns {Promise<Object>} Parsed JSON matching the Summary schema
- * @throws {AppError} On API failure, invalid JSON, or missing fields
- */
-export async function summarizeTranscript(videoTitle, segments) {
+  if (!openaiClient) {
+    let OpenAI;
+    try {
+      OpenAI = require("openai");
+    } catch (_err) {
+      throw new Error("Missing dependency: install with `npm install openai`");
+    }
+    openaiClient = new OpenAI({ apiKey: config.openaiApiKey });
+  }
+
+  return openaiClient;
+};
+
+const normalizeNumber = (value, fallback = 0) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const normalizeSummaryPayload = (payload) => {
+  const chapters = Array.isArray(payload.chapters) ? payload.chapters : [];
+  const keyConcepts = Array.isArray(payload.keyConcepts) ? payload.keyConcepts : [];
+
+  return {
+    shortSummary: typeof payload.shortSummary === "string" ? payload.shortSummary.trim() : "",
+    detailedSummary: typeof payload.detailedSummary === "string" ? payload.detailedSummary.trim() : "",
+    chapters: chapters.map((chapter) => ({
+      title: typeof chapter.title === "string" ? chapter.title.trim() : "",
+      startSeconds: normalizeNumber(chapter.startSeconds, normalizeNumber(chapter.startTime, 0)),
+      endSeconds: normalizeNumber(chapter.endSeconds, normalizeNumber(chapter.endTime, 0))
+    })),
+    keyConcepts: keyConcepts.map((concept) => ({
+      name: typeof concept.name === "string" ? concept.name.trim() : "",
+      explanation: typeof concept.explanation === "string" ? concept.explanation.trim() : ""
+    }))
+  };
+};
+
+const summarizeTranscript = async ({ videoTitle, transcriptText }) => {
+  if (!transcriptText || !transcriptText.trim()) {
+    throw new Error("Transcript text is required for summary generation");
+  }
+
+  const client = getOpenAIClient();
+  const prompt = generateUserPrompt(videoTitle || "Untitled Video", transcriptText);
+
+  const response = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.3,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: prompt }
+    ]
+  });
+
+  const rawContent = response.choices?.[0]?.message?.content;
+  if (!rawContent) {
+    throw new Error("OpenAI returned an empty response");
+  }
+
+  let parsed;
   try {
-    const userPrompt = generateUserPromptWithSegments(videoTitle, segments);
-
-    // ── Call OpenAI ──────────────────────────────────────────
-    // response_format: json_object forces the model to return
-    // valid JSON — it will never reply in plain text.
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",              // GPT-4o is the latest, best model
-      temperature: 0.3,              // low = consistent outputs
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user",   content: userPrompt },
-      ],
-    });
-
-    const rawContent = response.choices[0]?.message?.content;
-
-    if (!rawContent) {
-      throw new AppError("OpenAI returned an empty response", 500);
-    }
-
-    // ── Parse & validate ─────────────────────────────────────
-    const parsed = JSON.parse(rawContent);
-
-    // Defensive check: ensure every required field exists.
-    validateSummaryShape(parsed);
-
-    return parsed;
-
-  } catch (err) {
-    // Re-throw AppErrors as-is (they're already formatted).
-    if (err instanceof AppError) throw err;
-
-    // OpenAI SDK errors: rate limits, auth failures, network issues.
-    if (err.status === 429) {
-      throw new AppError("OpenAI rate limit exceeded. Try again later.", 429);
-    }
-    if (err.status === 401) {
-      throw new AppError("Invalid OpenAI API key.", 500);
-    }
-
-    // JSON parse errors or any other unexpected failures.
-    console.error("[OpenAI Service Error]", err);
-    throw new AppError("Failed to generate summary", 500);
-  }
-}
-
-// ── Validate response shape ──────────────────────────────────
-// Confirms the AI returned every field the Summary model expects.
-// Throws if anything is missing or malformed.
-function validateSummaryShape(obj) {
-  const requiredFields = [
-    "shortSummary",
-    "detailedSummary",
-    "keyPoints",
-    "chapters",
-    "keyConcepts",
-    "actionableLearningPoints",
-  ];
-
-  for (const field of requiredFields) {
-    if (!(field in obj)) {
-      throw new AppError(`AI response missing field: ${field}`, 500);
-    }
+    parsed = JSON.parse(rawContent);
+  } catch (_err) {
+    throw new Error("OpenAI response was not valid JSON");
   }
 
-  // Type checks
-  if (typeof obj.shortSummary !== "string" || !obj.shortSummary.trim()) {
-    throw new AppError("shortSummary must be a non-empty string", 500);
-  }
-  if (typeof obj.detailedSummary !== "string" || !obj.detailedSummary.trim()) {
-    throw new AppError("detailedSummary must be a non-empty string", 500);
-  }
-  if (!Array.isArray(obj.keyPoints) || obj.keyPoints.length === 0) {
-    throw new AppError("keyPoints must be a non-empty array", 500);
-  }
-  if (!Array.isArray(obj.chapters)) {
-    throw new AppError("chapters must be an array", 500);
-  }
-  if (!Array.isArray(obj.keyConcepts)) {
-    throw new AppError("keyConcepts must be an array", 500);
-  }
-  if (!Array.isArray(obj.actionableLearningPoints)) {
-    throw new AppError("actionableLearningPoints must be an array", 500);
+  const normalized = normalizeSummaryPayload(parsed);
+  if (!normalized.shortSummary || !normalized.detailedSummary) {
+    throw new Error("OpenAI response missing required summary fields");
   }
 
-  // Validate chapter structure
-  for (const ch of obj.chapters) {
-    if (!ch.title || typeof ch.startTime !== "number" || typeof ch.endTime !== "number") {
-      throw new AppError("Each chapter must have title, startTime, endTime", 500);
-    }
-  }
+  return normalized;
+};
 
-  // Validate keyConcepts structure
-  for (const kc of obj.keyConcepts) {
-    if (!kc.concept || typeof kc.concept !== "string") {
-      throw new AppError("Each keyConcept must have a concept string", 500);
-    }
-  }
-}
+module.exports = { summarizeTranscript };

@@ -5,6 +5,7 @@
     "express": "^5.2.1",
     "mongod": "^2.0.0",
     "mongoose": "^9.1.5",
+    "openai": "^4.0.0"
     "router": "^2.2.0",
     "youtube-transcript": "^1.2.1"
   },
