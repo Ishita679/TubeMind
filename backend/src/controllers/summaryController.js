@@ -1,7 +1,6 @@
-const Summary = require("../models/Summary");
+import Summary from "../models/Summary.js";
 
-// POST /api/summaries
-const createSummary = async (req, res) => {
+export const createSummary = async (req, res) => {
   try {
     const summary = await Summary.create(req.body);
     res.status(201).json(summary);
@@ -10,8 +9,7 @@ const createSummary = async (req, res) => {
   }
 };
 
-// GET /api/summaries/:videoId
-const getSummaryByVideo = async (req, res) => {
+export const getSummaryByVideo = async (req, res) => {
   try {
     const summary = await Summary.findOne({ video: req.params.videoId });
     if (!summary) return res.status(404).json({ error: "Summary not found" });
@@ -20,5 +18,3 @@ const getSummaryByVideo = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
-
-module.exports = { createSummary, getSummaryByVideo };

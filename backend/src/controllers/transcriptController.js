@@ -1,7 +1,6 @@
-const Transcript = require("../models/Transcript");
+import Transcript from "../models/Transcript.js";
 
-// POST /api/transcripts
-const createTranscript = async (req, res) => {
+export const createTranscript = async (req, res) => {
   try {
     const transcript = await Transcript.create(req.body);
     res.status(201).json(transcript);
@@ -10,8 +9,7 @@ const createTranscript = async (req, res) => {
   }
 };
 
-// GET /api/transcripts/:videoId
-const getTranscriptByVideo = async (req, res) => {
+export const getTranscriptByVideo = async (req, res) => {
   try {
     const transcript = await Transcript.findOne({ video: req.params.videoId });
     if (!transcript) return res.status(404).json({ error: "Transcript not found" });
@@ -20,5 +18,3 @@ const getTranscriptByVideo = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
-
-module.exports = { createTranscript, getTranscriptByVideo };

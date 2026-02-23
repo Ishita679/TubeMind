@@ -1,111 +1,97 @@
-const Video = require("../models/Video");
-const Transcript = require("../models/Transcript");
-const Summary = require("../models/Summary");
-const { getTranscript } = require("../services/transcriptService");
-const { summarizeTranscript } = require("../services/openaiService");
+import Video from "../models/Video.js";
+import Transcript from "../models/Transcript.js";
+import Summary from "../models/Summary.js";
+import { getVideoDetails } from "../services/youtubeService.js";
+import { getTranscript } from "../services/transcriptService.js";
+import { summarizeTranscript } from "../services/openaiService.js";
 
-// POST /api/videos
-const createVideo = async (req, res) => {
+export const createVideo = async (req, res) => {
+  let savedVideoId = null; // Track the ID so we can clean up if it crashes
+  
   try {
-    const video = await Video.create(req.body);
-    res.status(201).json(video);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
+    const { videoId } = req.body;
+    if (!videoId) return res.status(400).json({ message: "videoId is required" });
 
-// GET /api/videos
-const getAllVideos = async (_req, res) => {
-  try {
-    const videos = await Video.find().sort({ createdAt: -1 });
-    res.json(videos);
+    // 1. Check if we already processed this video completely
+    let video = await Video.findOne({ videoId });
+    if (video) {
+      const existingSummary = await Summary.findOne({ video: video._id });
+      if (existingSummary) {
+        return res.status(200).json({ message: "Video already processed", summary: existingSummary });
+      }
+      // If video exists but summary doesn't, it means a previous run crashed. 
+      // We will overwrite it and finish the job!
+      savedVideoId = video._id; 
+    } else {
+      // 2. Fetch YouTube Metadata
+      const ytDetails = await getVideoDetails(videoId);
+      if (!ytDetails) return res.status(404).json({ message: "Video not found on YouTube" });
+
+      // Save Video to DB
+      video = await Video.create({
+        videoId,
+        title: ytDetails.title,
+        channelName: ytDetails.channelName,
+        durationSeconds: ytDetails.duration
+      });
+      savedVideoId = video._id;
+    }
+
+    // 3. Fetch Transcript
+    const transcriptText = await getTranscript(videoId);
+    console.log("=== RAW TRANSCRIPT EXTRACTED ===");
+    console.log(transcriptText);
+    console.log("================================");
+    if (!transcriptText || transcriptText.trim() === "") {
+       throw new Error("Could not extract transcript. The video might not have captions enabled.");
+    }
+    
+    // Upsert Transcript (forces an overwrite if it existed from a partial run)
+    await Transcript.findOneAndUpdate(
+      { video: savedVideoId },
+      { rawText: transcriptText },
+      { upsert: true, returnDocument: 'after' }
+    );
+
+    // 4. Summarize via OpenAI
+    const summaryData = await summarizeTranscript({
+      videoTitle: video.title,
+      transcriptText
+    });
+
+    // 5. Save Summary to DB
+    const summary = await Summary.findOneAndUpdate(
+       { video: savedVideoId },
+       { ...summaryData },
+       { upsert: true, returnDocument: 'after' }
+    );
+
+    res.status(201).json({ message: "Successfully processed video", summary });
+
   } catch (err) {
+    console.error("[Create Video Error]:", err.message);
+    
+    // THE SELF-HEALING CLEANUP: Delete the half-saved video if the pipeline crashed
+    if (savedVideoId) {
+       await Video.findByIdAndDelete(savedVideoId);
+       await Transcript.findOneAndDelete({ video: savedVideoId });
+    }
+    
     res.status(500).json({ error: err.message });
   }
 };
 
-// GET /api/videos/:id
-const getVideoById = async (req, res) => {
-  try {
-    const video = await Video.findById(req.params.id);
-    if (!video) return res.status(404).json({ error: "Video not found" });
-    res.json(video);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+export const getAllVideos = async (req, res) => {
+  const videos = await Video.find().sort({ createdAt: -1 });
+  res.status(200).json(videos);
 };
 
-// GET /api/videos/:id/status
-const getVideoStatus = async (req, res) => {
-  try {
-    const video = await Video.findById(req.params.id);
-    if (!video) return res.status(404).json({ error: "Video not found" });
-
-    let transcript = await Transcript.findOne({ video: video._id }).select("_id createdAt rawText");
-    let transcriptAutoCreated = false;
-    let transcriptError = null;
-
-    if (!transcript) {
-      try {
-        if (!video.videoId) {
-          throw new Error("YouTube videoId is missing on this video record");
-        }
-
-        const rawText = await getTranscript(video.videoId);
-        if (!rawText || !rawText.trim()) {
-          throw new Error("Transcript fetch returned empty text");
-        }
-
-        transcript = await Transcript.create({
-          video: video._id,
-          rawText
-        });
-        transcriptAutoCreated = true;
-      } catch (err) {
-        transcriptError = err.message;
-      }
-    }
-
-    let summary = await Summary.findOne({ video: video._id }).select("_id createdAt");
-    let summaryAutoCreated = false;
-    let summaryError = null;
-
-    if (!summary && transcript) {
-      try {
-        const generatedSummary = await summarizeTranscript({
-          videoTitle: video.title || video.videoId,
-          transcriptText: transcript.rawText || ""
-        });
-
-        summary = await Summary.create({
-          video: video._id,
-          ...generatedSummary
-        });
-        summaryAutoCreated = true;
-      } catch (err) {
-        summaryError = err.message;
-      }
-    }
-
-    const transcriptView = transcript
-      ? { _id: transcript._id, createdAt: transcript.createdAt }
-      : null;
-
-    res.json({
-      videoId: video._id,
-      youtubeVideoId: video.videoId,
-      hasTranscript: Boolean(transcript),
-      hasSummary: Boolean(summary),
-      transcriptAutoCreated,
-      transcriptError,
-      summaryAutoCreated,
-      summaryError,
-      transcript: transcriptView,
-      summary: summary || null
-    });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+export const getVideoById = async (req, res) => {
+  const video = await Video.findOne({ videoId: req.params.id });
+  if (!video) return res.status(404).json({ message: "Video not found" });
+  res.status(200).json(video);
 };
 
-module.exports = { createVideo, getAllVideos, getVideoById, getVideoStatus };
+export const getVideoStatus = async (req, res) => {
+  res.status(200).json({ status: "processing" }); 
+};

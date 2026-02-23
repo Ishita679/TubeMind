@@ -1,9 +1,9 @@
-const express = require("express");
-const { createTranscript, getTranscriptByVideo } = require("../controllers/transcriptController");
+import express from "express";
+import { createTranscript, getTranscriptByVideo } from "../controllers/transcriptController.js";
 
 const router = express.Router();
 
 router.post("/", createTranscript);
 router.get("/:videoId", getTranscriptByVideo);
 
-module.exports = router;
+export default router;

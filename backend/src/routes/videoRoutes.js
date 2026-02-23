@@ -1,10 +1,5 @@
-const express = require("express");
-const {
-  createVideo,
-  getAllVideos,
-  getVideoById,
-  getVideoStatus
-} = require("../controllers/VideoController.js");
+import express from "express";
+import { createVideo, getAllVideos, getVideoById, getVideoStatus } from "../controllers/videoController.js";
 
 const router = express.Router();
 
@@ -13,4 +8,4 @@ router.get("/", getAllVideos);
 router.get("/:id/status", getVideoStatus);
 router.get("/:id", getVideoById);
 
-module.exports = router;
+export default router;

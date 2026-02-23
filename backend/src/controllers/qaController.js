@@ -1,7 +1,6 @@
-const QA = require("../models/QA");
+import QA from "../models/QA.js";
 
-// POST /api/qa
-const createQA = async (req, res) => {
+export const createQA = async (req, res) => {
   try {
     const qa = await QA.create(req.body);
     res.status(201).json(qa);
@@ -10,8 +9,7 @@ const createQA = async (req, res) => {
   }
 };
 
-// GET /api/qa/:videoId
-const getQAByVideo = async (req, res) => {
+export const getQAByVideo = async (req, res) => {
   try {
     const qa = await QA.find({ video: req.params.videoId }).sort({ createdAt: -1 });
     res.json(qa);
@@ -19,5 +17,3 @@ const getQAByVideo = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
-
-module.exports = { createQA, getQAByVideo };

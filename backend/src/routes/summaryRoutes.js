@@ -1,9 +1,9 @@
-const express = require("express");
-const { createSummary, getSummaryByVideo } = require("../controllers/summaryController");
+import express from "express";
+import { createSummary, getSummaryByVideo } from "../controllers/summaryController.js";
 
 const router = express.Router();
 
 router.post("/", createSummary);
 router.get("/:videoId", getSummaryByVideo);
 
-module.exports = router;
+export default router;

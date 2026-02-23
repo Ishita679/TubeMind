@@ -1,25 +1,10 @@
-const express = require("express");
-const config = require("./config/env");
-const { connectDB } = require("./config/db");
-const videoRoutes = require("./routes/videoRoutes");
-const transcriptRoutes = require("./routes/transcriptRoutes");
-const summaryRoutes = require("./routes/summaryRoutes");
-const qaRoutes = require("./routes/qaRoutes");
-
-const app = express();
-
-app.use(express.json());
-app.use("/api/videos", videoRoutes);
-app.use("/api/transcripts", transcriptRoutes);
-app.use("/api/summaries", summaryRoutes);
-app.use("/api/qa", qaRoutes);
-
-
+import app from "./app.js";
+import config from "./config/env.js";
+import { connectDB } from "./config/db.js";
 
 const startServer = async () => {
   try {
     console.log("⏳ TubeMind starting up...");
-
     await connectDB();
 
     app.listen(config.port, () => {

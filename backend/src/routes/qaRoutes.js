@@ -1,9 +1,9 @@
-const express = require("express");
-const { createQA, getQAByVideo } = require("../controllers/qaController");
+import express from "express";
+import { createQA, getQAByVideo } from "../controllers/qaController.js";
 
 const router = express.Router();
 
 router.post("/", createQA);
 router.get("/:videoId", getQAByVideo);
 
-module.exports = router;
+export default router;
