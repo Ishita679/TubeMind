@@ -1,24 +1,19 @@
-const config = require("../config/env");
-const { SYSTEM_PROMPT, generateUserPrompt } = require("../utils/promptTemplates");
+import OpenAI from "openai";
+import config from "../config/env.js";
+import { SYSTEM_PROMPT, generateUserPrompt } from "../utils/promptTemplates.js";
 
-let openaiClient = null;
+let aiClient = null;
 
-const getOpenAIClient = () => {
-  if (!config.openaiApiKey) {
-    throw new Error("OPENAI_API_KEY is missing in .env file");
+// HIJACKED: This now points to Groq using the OpenAI SDK!
+const getAIClient = () => {
+  if (!config.groqApiKey) throw new Error("GROQ_API_KEY is missing in .env file");
+  if (!aiClient) {
+    aiClient = new OpenAI({ 
+      apiKey: config.groqApiKey,
+      baseURL: "https://api.groq.com/openai/v1" // Redirects the package away from OpenAI
+    });
   }
-
-  if (!openaiClient) {
-    let OpenAI;
-    try {
-      OpenAI = require("openai");
-    } catch (_err) {
-      throw new Error("Missing dependency: install with `npm install openai`");
-    }
-    openaiClient = new OpenAI({ apiKey: config.openaiApiKey });
-  }
-
-  return openaiClient;
+  return aiClient;
 };
 
 const normalizeNumber = (value, fallback = 0) => {
@@ -45,42 +40,39 @@ const normalizeSummaryPayload = (payload) => {
   };
 };
 
-const summarizeTranscript = async ({ videoTitle, transcriptText }) => {
-  if (!transcriptText || !transcriptText.trim()) {
-    throw new Error("Transcript text is required for summary generation");
-  }
+export const summarizeTranscript = async ({ videoTitle, transcriptText }) => {
+  if (!transcriptText || !transcriptText.trim()) throw new Error("Transcript text is required");
 
-  const client = getOpenAIClient();
+  const client = getAIClient();
   const prompt = generateUserPrompt(videoTitle || "Untitled Video", transcriptText);
 
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.3,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: prompt }
-    ]
-  });
-
-  const rawContent = response.choices?.[0]?.message?.content;
-  if (!rawContent) {
-    throw new Error("OpenAI returned an empty response");
-  }
-
-  let parsed;
   try {
-    parsed = JSON.parse(rawContent);
-  } catch (_err) {
-    throw new Error("OpenAI response was not valid JSON");
-  }
+    const response = await client.chat.completions.create({
+      model: "llama-3.1-8b-instant", // Using Meta's Llama 3 on Groq
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: prompt }
+      ]
+    });
 
-  const normalized = normalizeSummaryPayload(parsed);
-  if (!normalized.shortSummary || !normalized.detailedSummary) {
-    throw new Error("OpenAI response missing required summary fields");
-  }
+    const rawContent = response.choices?.[0]?.message?.content;
+    if (!rawContent) throw new Error("AI returned an empty response");
 
-  return normalized;
+    let parsed;
+    try { parsed = JSON.parse(rawContent); } 
+    catch (_err) { throw new Error("AI response was not valid JSON"); }
+
+    const normalized = normalizeSummaryPayload(parsed);
+    if (!normalized.shortSummary || !normalized.detailedSummary) {
+      throw new Error("AI response missing required summary fields");
+    }
+
+    return normalized;
+
+  } catch (err) {
+    console.error("[AI Generation Error]:", err.message);
+    throw err; 
+  }
 };
-
-module.exports = { summarizeTranscript };
