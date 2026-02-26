@@ -1,10 +1,43 @@
 // ── Utility helpers ────────────────────────────────────────────────────────────
 
-/** Extract the YouTube video ID from any valid YouTube URL */
+/**
+ * Extract the 11-character YouTube video ID from any common URL format.
+ * Mirrors the backend logic so that frontend validation and backend
+ * extraction always agree.  Supports extra query params, mobile domains, etc.
+ */
 export function extractVideoId(url) {
-    const regex = /(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/;
-    const match = url.match(regex);
-    return match ? match[1] : null;
+    if (!url || typeof url !== "string") return null;
+    const trimmed = url.trim();
+
+    // quick sanity check
+    if (!/youtube\.com|youtu\.be/i.test(trimmed)) return null;
+
+    try {
+        const parsed = new URL(trimmed);
+        // youtu.be short link
+        if (parsed.hostname === "youtu.be") {
+            const id = parsed.pathname.slice(1).split("/")[0];
+            return isValidId(id) ? id : null;
+        }
+
+        // youtube.com variants
+        if (/youtube\.com/.test(parsed.hostname)) {
+            const v = parsed.searchParams.get("v");
+            if (v && isValidId(v)) return v;
+
+            const pathMatch = parsed.pathname.match(/\/(?:embed|shorts|live|v)\/([a-zA-Z0-9_-]{11})/);
+            if (pathMatch && isValidId(pathMatch[1])) return pathMatch[1];
+        }
+    } catch {
+        // invalid URL string – fall through to regex fallback
+    }
+
+    const regexMatch = trimmed.match(/(?:v=|youtu\.be\/|embed\/|shorts\/|live\/)([a-zA-Z0-9_-]{11})/);
+    return regexMatch && isValidId(regexMatch[1]) ? regexMatch[1] : null;
+}
+
+function isValidId(id) {
+    return typeof id === "string" && /^[a-zA-Z0-9_-]{11}$/.test(id);
 }
 
 /** Basic YouTube URL validation */

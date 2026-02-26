@@ -1,5 +1,6 @@
 import { YoutubeTranscript } from "youtube-transcript";
 import { Innertube } from "youtubei.js";
+import { getSubtitles } from "youtube-captions-scraper";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -42,9 +43,36 @@ const fetchViaYoutubeTranscriptAny = async (videoId) => {
   return toParagraphs(items);
 };
 
+// ── Supplemental: youtube‑captions‑scraper (last‑resort) ───────────────────────
+// A lightweight scraper that parses the captions JSON embedded in the page.  It
+// works in environments where the other libraries sometimes fail due to API
+// changes or network restrictions.
+
+/**
+ * Attempt 3: youtube-captions-scraper (generic XML captions extractor)
+ * Returns plain text paragraphs or null if the video has no usable captions.
+ */
+const fetchViaCaptionsScraper = async (videoId) => {
+  try {
+    const lines = await getSubtitles({ videoID: videoId, lang: "en" });
+    if (!lines || lines.length === 0) return null;
+    // scraper returns objects with {start,dur,text}
+    const items = lines.map((l) => ({ text: l.text }));
+    return toParagraphs(items);
+  } catch (e) {
+    // the library throws if no captions or if the language isn't available
+    return null;
+  }
+};
+
 // ── Fallback: youtubei.js ─────────────────────────────────────────────────────
 
-/** Attempt 3: youtubei.js (Innertube) – fetches captions directly from YouTube's internal API */
+/**
+ * Attempt 3: youtubei.js (Innertube) – fetches captions directly from YouTube's
+ * internal API.  Innertube is the most reliable source and will return both
+ * manually uploaded and auto‑generated captions, so we call it first in the
+ * public `getTranscript` flow below.
+ */
 const fetchViaInnertube = async (videoId) => {
   let yt;
   try {
@@ -76,48 +104,64 @@ const fetchViaInnertube = async (videoId) => {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Fetch the transcript for a YouTube video using a 3-tier fallback strategy:
- *   1. youtube-transcript  (English captions)
- *   2. youtube-transcript  (any available captions)
- *   3. youtubei.js Innertube  (direct YouTube internal API)
+ * Fetch the transcript for a YouTube video using a multi‑tier fallback strategy:
+ *   1. youtubei.js Innertube  (direct YouTube internal API)
+ *   2. youtube-transcript  (English captions)
+ *   3. youtube-transcript  (any available captions)
+ *   4. youtube-captions-scraper (XML caption extractor)
+ *
+ * Innertube is attempted first because it is the most modern and tends to
+ * succeed for auto‑generated captions as well as uploads.  When it fails we
+ * fall back to various HTTP scrapers in descending order of preference.
  *
  * @param {string} videoId  - 11-character YouTube video ID
  * @returns {Promise<string|null>}  Clean transcript string, or null if unavailable
  */
 export const getTranscript = async (videoId) => {
-  // ── Tier 1 ───────────────────────────────────────────────────────────────
+  // ── Tier 1 (preferred) – Innertube because it's the most reliable / modern API
   try {
-    const text = await fetchViaYoutubeTranscriptEN(videoId);
+    const text = await fetchViaInnertube(videoId);
     if (text) {
-      console.log("[transcriptService] Tier 1 (youtube-transcript EN) succeeded.");
+      console.log("[transcriptService] Tier 1 (youtubei.js Innertube) succeeded.");
       return text;
     }
   } catch (e) {
     console.warn("[transcriptService] Tier 1 failed:", e.message);
   }
 
-  // ── Tier 2 ───────────────────────────────────────────────────────────────
+  // ── Tier 2 – youtube-transcript with explicit English lang
   try {
-    const text = await fetchViaYoutubeTranscriptAny(videoId);
+    const text = await fetchViaYoutubeTranscriptEN(videoId);
     if (text) {
-      console.log("[transcriptService] Tier 2 (youtube-transcript any lang) succeeded.");
+      console.log("[transcriptService] Tier 2 (youtube-transcript EN) succeeded.");
       return text;
     }
   } catch (e) {
     console.warn("[transcriptService] Tier 2 failed:", e.message);
   }
 
-  // ── Tier 3 ───────────────────────────────────────────────────────────────
+  // ── Tier 3 – youtube-transcript without any language filter
   try {
-    const text = await fetchViaInnertube(videoId);
+    const text = await fetchViaYoutubeTranscriptAny(videoId);
     if (text) {
-      console.log("[transcriptService] Tier 3 (youtubei.js Innertube) succeeded.");
+      console.log("[transcriptService] Tier 3 (youtube-transcript any lang) succeeded.");
       return text;
     }
   } catch (e) {
     console.warn("[transcriptService] Tier 3 failed:", e.message);
   }
 
-  console.error(`[transcriptService] All 3 tiers failed for videoId: ${videoId}`);
+  // ── Tier 4 – youtube-captions-scraper
+  try {
+    const text = await fetchViaCaptionsScraper(videoId);
+    if (text) {
+      console.log("[transcriptService] Tier 4 (captions-scraper) succeeded.");
+      return text;
+    }
+  } catch (e) {
+    console.warn("[transcriptService] Tier 4 failed:", e.message);
+  }
+
+  console.error(`[transcriptService] All 4 tiers failed for videoId: ${videoId}`);
   return null;
 };

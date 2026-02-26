@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import healthRoutes from "./routes/healthRoutes.js";
 import videoRoutes from "./routes/videoRoutes.js";
 import transcriptApiRoute from "./routes/transcriptApiRoute.js";
@@ -9,14 +10,9 @@ import errorHandler from "./middleware/errorHandler.js";
 
 const app = express();
 
-// ── CORS ────────────────────────────────────────────────────────────────────
-app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  if (req.method === "OPTIONS") return res.sendStatus(204);
-  next();
-});
+// ── CORS (simple allow-all for development/public API) ───────────────────────
+app.use(cors()); // Access-Control-Allow-Origin: *
+
 
 // ── Body parsing ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "10mb" }));
