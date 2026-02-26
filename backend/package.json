@@ -7,13 +7,15 @@
     "dev": "nodemon src/server.js"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
     "axios": "^1.13.4",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "mongoose": "^9.1.5",
     "openai": "^4.0.0",
     "youtube-captions-scraper": "^2.0.3",
-    "youtube-transcript": "^1.2.1"
+    "youtube-transcript": "^1.2.1",
+    "youtubei.js": "^16.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

@@ -7,7 +7,7 @@ import { summarizeTranscript } from "../services/openaiService.js";
 
 export const createVideo = async (req, res) => {
   let savedVideoId = null; // Track the ID so we can clean up if it crashes
-  
+
   try {
     const { videoId } = req.body;
     if (!videoId) return res.status(400).json({ message: "videoId is required" });
@@ -17,11 +17,16 @@ export const createVideo = async (req, res) => {
     if (video) {
       const existingSummary = await Summary.findOne({ video: video._id });
       if (existingSummary) {
-        return res.status(200).json({ message: "Video already processed", summary: existingSummary });
+        const existingTranscript = await Transcript.findOne({ video: video._id });
+        return res.status(200).json({
+          message: "Video already processed",
+          summary: existingSummary,
+          transcript: existingTranscript?.rawText || null
+        });
       }
       // If video exists but summary doesn't, it means a previous run crashed. 
       // We will overwrite it and finish the job!
-      savedVideoId = video._id; 
+      savedVideoId = video._id;
     } else {
       // 2. Fetch YouTube Metadata
       const ytDetails = await getVideoDetails(videoId);
@@ -39,13 +44,13 @@ export const createVideo = async (req, res) => {
 
     // 3. Fetch Transcript
     const transcriptText = await getTranscript(videoId);
-    console.log("=== RAW TRANSCRIPT EXTRACTED ===");
-    console.log(transcriptText);
-    console.log("================================");
     if (!transcriptText || transcriptText.trim() === "") {
-       throw new Error("Could not extract transcript. The video might not have captions enabled.");
+      throw new Error(
+        "No captions found for this video. The video may not have subtitles enabled, " +
+        "or YouTube is blocking automated access. Please try a video that has captions."
+      );
     }
-    
+
     // Upsert Transcript (forces an overwrite if it existed from a partial run)
     await Transcript.findOneAndUpdate(
       { video: savedVideoId },
@@ -61,22 +66,22 @@ export const createVideo = async (req, res) => {
 
     // 5. Save Summary to DB
     const summary = await Summary.findOneAndUpdate(
-       { video: savedVideoId },
-       { ...summaryData },
-       { upsert: true, returnDocument: 'after' }
+      { video: savedVideoId },
+      { ...summaryData },
+      { upsert: true, returnDocument: 'after' }
     );
 
-    res.status(201).json({ message: "Successfully processed video", summary });
+    res.status(201).json({ message: "Successfully processed video", summary, transcript: transcriptText });
 
   } catch (err) {
     console.error("[Create Video Error]:", err.message);
-    
+
     // THE SELF-HEALING CLEANUP: Delete the half-saved video if the pipeline crashed
     if (savedVideoId) {
-       await Video.findByIdAndDelete(savedVideoId);
-       await Transcript.findOneAndDelete({ video: savedVideoId });
+      await Video.findByIdAndDelete(savedVideoId);
+      await Transcript.findOneAndDelete({ video: savedVideoId });
     }
-    
+
     res.status(500).json({ error: err.message });
   }
 };
@@ -93,5 +98,5 @@ export const getVideoById = async (req, res) => {
 };
 
 export const getVideoStatus = async (req, res) => {
-  res.status(200).json({ status: "processing" }); 
+  res.status(200).json({ status: "processing" });
 };

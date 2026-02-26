@@ -8,19 +8,32 @@ import errorHandler from "./middleware/errorHandler.js";
 
 const app = express();
 
-app.use(express.json());
+// ── CORS ────────────────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
+// ── Body parsing ──────────────────────────────────────────────────────────────
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/health", healthRoutes);
 app.use("/api/videos", videoRoutes);
 app.use("/api/transcripts", transcriptRoutes);
 app.use("/api/summaries", summaryRoutes);
 app.use("/api/qa", qaRoutes);
 
+// ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
   res.status(404).json({ status: "fail", message: "The requested resource was not found" });
 });
 
+// ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
 
 export default app;
