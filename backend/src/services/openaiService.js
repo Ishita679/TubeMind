@@ -6,9 +6,14 @@ let aiClient = null;
 
 // HIJACKED: This now points to Groq using the OpenAI SDK!
 const getAIClient = () => {
-  if (!config.groqApiKey) throw new Error("GROQ_API_KEY is missing in .env file");
+  if (!config.groqApiKey) {
+    throw new Error(
+      "GROQ_API_KEY is not set in backend/.env. " +
+      "Get a free key at https://console.groq.com/ and add GROQ_API_KEY=<your_key> to the .env file."
+    );
+  }
   if (!aiClient) {
-    aiClient = new OpenAI({ 
+    aiClient = new OpenAI({
       apiKey: config.groqApiKey,
       baseURL: "https://api.groq.com/openai/v1" // Redirects the package away from OpenAI
     });
@@ -61,7 +66,7 @@ export const summarizeTranscript = async ({ videoTitle, transcriptText }) => {
     if (!rawContent) throw new Error("AI returned an empty response");
 
     let parsed;
-    try { parsed = JSON.parse(rawContent); } 
+    try { parsed = JSON.parse(rawContent); }
     catch (_err) { throw new Error("AI response was not valid JSON"); }
 
     const normalized = normalizeSummaryPayload(parsed);
@@ -73,6 +78,6 @@ export const summarizeTranscript = async ({ videoTitle, transcriptText }) => {
 
   } catch (err) {
     console.error("[AI Generation Error]:", err.message);
-    throw err; 
+    throw err;
   }
 };

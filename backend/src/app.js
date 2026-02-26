@@ -1,6 +1,7 @@
 import express from "express";
 import healthRoutes from "./routes/healthRoutes.js";
 import videoRoutes from "./routes/videoRoutes.js";
+import transcriptApiRoute from "./routes/transcriptApiRoute.js";
 import transcriptRoutes from "./routes/transcriptRoutes.js";
 import summaryRoutes from "./routes/summaryRoutes.js";
 import qaRoutes from "./routes/qaRoutes.js";
@@ -24,6 +25,9 @@ app.use(express.urlencoded({ extended: true }));
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/health", healthRoutes);
 app.use("/api/videos", videoRoutes);
+// New lightweight transcript endpoint (no DB / AI key required)
+app.use("/api/transcript", transcriptApiRoute);
+// Legacy CRUD routes (require MongoDB)
 app.use("/api/transcripts", transcriptRoutes);
 app.use("/api/summaries", summaryRoutes);
 app.use("/api/qa", qaRoutes);
