@@ -6,11 +6,6 @@ export default function Footer() {
                     <span className="font-bold text-lg">Tube<span className="text-[#e63946]">Mind</span></span>
                     <p className="text-[#33333e] text-xs">© 2026 TubeMind AI. All rights reserved.</p>
                 </div>
-                <div className="flex gap-8 text-xs font-semibold text-[#55555f] uppercase tracking-widest">
-                    <a href="#" className="hover:text-[#e63946] transition-colors">Privacy</a>
-                    <a href="#" className="hover:text-[#e63946] transition-colors">Terms</a>
-                    <a href="#" className="hover:text-[#e63946] transition-colors">Security</a>
-                </div>
             </div>
         </footer>
     );
