@@ -1,0 +1,108 @@
+\documentclass{beamer}
+
+\usetheme{Madrid}
+\usepackage{hyperref}
+
+\title{TubeMind}
+\subtitle{AI-Powered YouTube Transcript Summarizer}
+\date{\today}
+
+\begin{document}
+
+% Title Slide
+\begin{frame}
+    \titlepage
+\end{frame}
+
+% Team Slide
+\begin{frame}{Team Name: TubeMind}
+    \begin{itemize}
+        \item Ishita Agrawal
+        \item Dhanashri Patare
+        \item Anagha
+    \end{itemize}
+\end{frame}
+
+% Project Overview
+\begin{frame}{Project Overview}
+    \begin{itemize}
+        \item AI-powered web application that extracts transcripts from YouTube videos.
+        \item Automatically processes and summarizes long-form video content.
+        \item Helps students and professionals quickly understand lengthy lectures and tutorials.
+        \item Clean, responsive, and user-friendly interface.
+    \end{itemize}
+\end{frame}
+
+% Objectives
+\begin{frame}{Objectives}
+    \begin{itemize}
+        \item Extract transcripts from YouTube video URLs.
+        \item Generate concise and structured summaries using Large Language Models (LLMs).
+        \item Provide fast and accurate results.
+        \item Build a scalable and efficient full-stack application.
+    \end{itemize}
+\end{frame}
+
+% Technology Stack
+\begin{frame}{Technology Stack}
+    \textbf{Frontend:} React.js, HTML, CSS, JavaScript \\[5pt]
+    \textbf{Backend:} Node.js, Express.js \\[5pt]
+    \textbf{AI Integration:} OpenAI API (GPT model) \\[5pt]
+    \textbf{Transcript Fetching:} YouTube Transcript API \\[5pt]
+    \textbf{HTTP Requests:} Axios \\[5pt]
+    \textbf{Deployment:} Vercel / Render
+\end{frame}
+
+% System Architecture
+\begin{frame}{System Architecture}
+    \begin{enumerate}
+        \item User enters YouTube video URL.
+        \item Backend extracts Video ID.
+        \item Transcript is fetched using Transcript API.
+        \item Transcript is sent to OpenAI API.
+        \item Generated summary is returned to frontend.
+        \item Summary is displayed to the user.
+    \end{enumerate}
+\end{frame}
+
+% Development Phases
+\begin{frame}{Development Phases}
+    \begin{enumerate}
+        \item Requirements Analysis
+        \item Frontend Development (UI/UX)
+        \item Backend API Development
+        \item Transcript Integration
+        \item AI Summarization Integration
+        \item Testing and Debugging
+        \item Deployment
+    \end{enumerate}
+\end{frame}
+
+% Challenges Faced
+\begin{frame}{Challenges Faced}
+    \begin{itemize}
+        \item Handling different YouTube URL formats.
+        \item Managing CORS and API errors.
+        \item Handling videos without transcripts.
+        \item Managing large transcript input size for AI models.
+        \item Ensuring fast response time.
+    \end{itemize}
+\end{frame}
+
+% Conclusion
+\begin{frame}{Conclusion}
+    \begin{itemize}
+        \item TubeMind simplifies learning from long YouTube videos.
+        \item Combines transcript extraction with AI summarization.
+        \item Scalable full-stack architecture.
+        \item Future scope: multi-language support, keyword extraction, and note export feature.
+    \end{itemize}
+\end{frame}
+
+% Questions Slide
+\begin{frame}{Questions}
+    Thank You! \\
+    We welcome your questions and feedback.
+\end{frame}
+
+\end{document}
