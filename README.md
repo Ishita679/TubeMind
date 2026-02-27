@@ -1,4 +1,4 @@
-# TubeMind Monorepo
+# TubeMind
 
 Welcome to the TubeMind project repository. This repository contains two versions of the TubeMind application, an AI-powered YouTube assistant that helps users extract transcripts, summarize content, and interact with video data.
 
