@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+    --brand: #e63946;
+    --bg: #09090b;
+    --card: #11111a;
+    --text: #ffffff;
+    --text-muted: #8888a0;
+    --border: rgba(255, 255, 255, 0.08);
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+}
+
+.shimmer-red {
+    background: linear-gradient(90deg, #e63946, #ff6b6b, #e63946);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+    to {
+        background-position: 200% center;
+    }
+}
+
+.orb-a {
+    animation: float-a 20s ease-in-out infinite;
+}
+
+.orb-b {
+    animation: float-b 15s ease-in-out infinite;
+}
+
+@keyframes float-a {
+
+    0%,
+    100% {
+        transform: translate(-50%, 0);
+    }
+
+    50% {
+        transform: translate(-45%, 20px);
+    }
+}
+
+@keyframes float-b {
+
+    0%,
+    100% {
+        transform: translate(0, 0);
+    }
+
+    50% {
+        transform: translate(-20px, -30px);
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(230, 57, 70, 0.3);
+}
