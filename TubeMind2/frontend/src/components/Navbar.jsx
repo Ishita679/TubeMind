@@ -13,8 +13,6 @@ export default function Navbar() {
                     </span>
                 </div>
                 <div className="hidden md:flex items-center gap-8 text-sm font-medium text-[#55555f]">
-                    <a href="#" className="hover:text-white transition-colors">Pricing</a>
-                    <a href="#" className="hover:text-white transition-colors">API</a>
                     <a href="https://github.com" target="_blank" className="hover:text-white transition-colors">GitHub</a>
                 </div>
             </div>
